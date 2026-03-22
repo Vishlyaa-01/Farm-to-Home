@@ -1,0 +1,214 @@
+        <?php
+            include 'db.php';
+
+            if(!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] != true){
+                header("location: index.php");
+                exit;
+            }
+
+            $farmer_username = $_SESSION['username'];
+
+            if (isset($_GET['accept'])) {
+                $order_id = $_GET['accept'];
+                $update = "UPDATE orders SET order_status = 'accepted' WHERE order_id = ?";
+                $stmt = $conn->prepare($update);
+                $stmt->bind_param("i", $order_id);
+                $stmt->execute();
+                header("Location: farmer.php?section=orders");
+                exit;
+            }
+            if (isset($_GET['reject'])) {
+                $order_id = $_GET['reject'];
+                $update = "UPDATE orders SET order_status = 'rejected' WHERE order_id = ?";
+                $stmt = $conn->prepare($update);
+                $stmt->bind_param("i", $order_id);
+                $stmt->execute();
+                header("Location: farmer.php?section=orders");
+                exit;
+            }
+        ?>
+
+
+
+
+
+<body>
+
+
+    <main class="main-content">
+
+
+
+
+        <?php
+            include 'db.php';
+
+            if(!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] != true){
+                header("location: index.php");
+                exit;
+            }
+
+            $farmer_username = $_SESSION['username'];
+
+            if (isset($_GET['accept'])) {
+                $order_id = $_GET['accept'];
+                $update = "UPDATE orders SET order_status = 'accepted' WHERE order_id = ?";
+                $stmt = $conn->prepare($update);
+                $stmt->bind_param("i", $order_id);
+                $stmt->execute();
+                header("Location: farmer.php?section=orders");
+                exit;
+            }
+            if (isset($_GET['reject'])) {
+                $order_id = $_GET['reject'];
+                $update = "UPDATE orders SET order_status = 'rejected' WHERE order_id = ?";
+                $stmt = $conn->prepare($update);
+                $stmt->bind_param("i", $order_id);
+                $stmt->execute();
+                header("Location: farmer.php?section=orders");
+                exit;
+            }
+        ?>
+
+        <section id="orders" class="content-section">
+            <h2>Orders</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Buyer Name</th>
+                        <th>Crop</th>
+                        <th>Quantity</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php while ($row = $orders->fetch_assoc()) { ?>
+                        <tr>
+                            <td><?php echo $row['order_id']; ?></td>
+                            <td><?php echo $row['buyer_name']; ?></td>
+                            <td><?php echo $row['crop_name']; ?></td>
+                            <td><?php echo $row['order_qty']; ?> KG</td>
+                            <td><?php echo $row['order_status']; ?></td>
+                            <td>
+                                <?php if ($row['order_status'] == 'Pending') { ?>
+                                    <a href="farmer.php?accept=<?php echo $row['order_id']; ?>" class="accept-btn">Accept</a>
+                                    <a href="farmer.php?reject=<?php echo $row['order_id']; ?>" class="reject-btn">Reject</a>
+                                <?php } else { ?>
+                                    <span>Processed</span>
+                                <?php } ?>
+                            </td>
+                        </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </section>
+
+
+
+
+    </main>
+
+
+
+</body>
+</html>
+
+
+
+
+        <?php
+            if (isset($_POST['order_action'])) {
+                $order_id = $_POST['order_id'];
+                $action = $_POST['order_action'];
+
+                // Convert action to status text
+                if ($action == "accept") {
+                    $new_status = "Accepted";
+                } else {
+                    $new_status = "Rejected";
+                }
+
+                // Update farmer orders table
+                $sql = "UPDATE orders SET order_status = ? WHERE order_id = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("si", $new_status, $order_id);
+                $stmt->execute();
+
+                // Update buyer orders table
+                $sql2 = "UPDATE buyer_orders SET order_status = ? WHERE order_id = ?";
+                $stmt2 = $conn->prepare($sql2);
+                $stmt2->bind_param("si", $new_status, $order_id);
+                $stmt2->execute();
+
+                echo "<script>alert('Order $new_status successfully!'); window.location.href='farmer.php';</script>";
+            }
+        ?>
+        <section id="orders" class="content-section">
+            <h2>Orders Received</h2>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Buyer Name</th>
+                        <th>Crop</th>
+                        <th>Qty (Kg)</th>
+                        <th>Price</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <?php
+                        $farmer = $_SESSION['username'];
+
+                        $sql = "SELECT o.order_id, b.buyer_name, c.crop_name, o.quantity, c.crop_price_per_kg,
+                                    (o.quantity * c.crop_price_per_kg) AS total, o.order_status
+                                FROM orders o
+                                INNER JOIN buyer b ON b.buyer_id = o.buyer_id
+                                INNER JOIN crop c ON c.crop_id = o.crop_id
+                                INNER JOIN farmer f ON f.farmer_id = c.farmer_id
+                                WHERE f.farmer_username = ?";
+
+                        $stmt = $conn->prepare($sql);
+                        $stmt->bind_param("s", $farmer);
+                        $stmt->execute();
+                        $orders = $stmt->get_result();
+
+                        while ($row = $orders->fetch_assoc()) {
+                            echo "
+                            <tr>
+                                <td>{$row['order_id']}</td>
+                                <td>" . htmlspecialchars($row['buyer_name']) . "</td>
+                                <td>" . htmlspecialchars($row['crop_name']) . "</td>
+                                <td>{$row['quantity']}</td>
+                                <td>₹{$row['crop_price_per_kg']}</td>
+                                <td>₹{$row['total']}</td>
+                                <td>{$row['order_status']}</td>
+                                <td>";
+
+                            if ($row['order_status'] == "Pending") {
+                                echo "
+                                    <form method='POST' style='display:inline-block'>
+                                        <input type='hidden' name='order_id' value='{$row['order_id']}'>
+                                        <button type='submit' name='order_action' value='accept' class='accept-btn'>Accept</button>
+                                    </form>
+                                    <form method='POST' style='display:inline-block'>
+                                        <input type='hidden' name='order_id' value='{$row['order_id']}'>
+                                        <button type='submit' name='order_action' value='reject' class='reject-btn'>Reject</button>
+                                    </form>
+                                ";
+                            } else {
+                                echo "<strong>{$row['order_status']}</strong>";
+                            }
+
+                            echo "</td></tr>";
+                        }
+                    ?>
+                </tbody>
+            </table>
+        </section>
